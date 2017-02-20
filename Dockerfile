@@ -1,4 +1,4 @@
-FROM node:6.9
+FROM hypriot/rpi-node:6.9
 
 # Install Nodejs
 RUN npm install yarn -g
