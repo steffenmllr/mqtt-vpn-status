@@ -1,0 +1,18 @@
+{
+  "name": "haas-vpnstatus",
+  "version": "1.0.0",
+  "description": "Publish the current IP and location via mqtt",
+  "main": "index.js",
+  "author": "Steffen Müller",
+  "license": "MIT",
+  "script": {
+    "start": "pm2 start index.js --no-daemon"
+  },
+  "dependencies": {
+    "cron": "^1.2.1",
+    "ipinfo": "^1.3.5",
+    "mqtt": "^2.4.0",
+    "pm2": "^2.4.0",
+    "speedtest-net": "^1.2.12"
+  }
+}
