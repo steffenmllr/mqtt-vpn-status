@@ -11,4 +11,5 @@ RUN cd /home/app && yarn
 # Copy the app
 COPY . /home/app
 
+WORKDIR /home/app
 CMD ["yarn", "run", "start"]

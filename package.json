@@ -5,7 +5,7 @@
   "main": "index.js",
   "author": "Steffen Müller",
   "license": "MIT",
-  "script": {
+  "scripts": {
     "start": "pm2 start index.js --no-daemon"
   },
   "dependencies": {
