@@ -2,6 +2,7 @@ const mqtt = require('mqtt')
 const cron = require('cron');
 const ipInfo = require('ipinfo');
 const speedTest = require('speedtest-net');
+const cronstring = require('cronstring');
 
 const MQTT_HOST = process.env.MQTT_HOST || 'http://192.168.1.106:1883';
 const MQTT_USER = process.env.MQTT_USER || 'pi';
@@ -13,36 +14,55 @@ const client = mqtt.connect(MQTT_HOST, {
     clientId: 'vpnstatus'
 })
 
-// Run every 10 minutes
-const cronJobVpn = cron.job("0 */2 * * * *", function(){
-    sendStateUpdate();
-});
-
-const cronJobVpnSpeed = cron.job("0 * */1 * * *", function(){
-    sendSpeedUpdate();
-});
-
+let vpnSpeedRunning = false;
 const sendSpeedUpdate = () => {
+    if (vpnSpeedRunning) {
+        console.log('Skipping VPN Speed');
+        return;
+    }
+    vpnSpeedRunning = true;
     speedTest().on('data', data => {
+        console.log(JSON.stringify(data.speeds));
         client.publish('vpn/download', JSON.stringify(data.speeds))
+        vpnSpeedRunning = false;
     });
 };
 
+let ipInfoRunning = false;
 const sendStateUpdate = () => {
+    if (ipInfoRunning) {
+        console.log('Skipping IP');
+        return;
+    }
+    ipInfoRunning = true;
     ipInfo((err, cLoc) => {
+        console.log(JSON.stringify(cLoc));
         client.publish('vpn/state', JSON.stringify(cLoc))
+        ipInfoRunning = false;
     });
 }
 
-
-client.on('connect', function() {
+client.on('connect', function(foo, bar) {
     client.publish('vpn/connected', 'true');
+    client.subscribe('vpn/update')
     sendStateUpdate();
     sendSpeedUpdate();
 
     cronJobVpn.start();
     cronJobVpnSpeed.start();
 })
+
+// Subscribe to update Calls
+client.on('message', function (topic, message) {
+    if (topic === 'vpn/update') {
+        console.log('vpn/update');
+        sendStateUpdate();
+    }
+});
+
+
+const cronJobVpn = cron.job(cronstring('every 2 minutes'), sendStateUpdate);
+const cronJobVpnSpeed = cron.job(cronstring('every 60 minutes'), sendSpeedUpdate);
 
 
 // Some cleanup
