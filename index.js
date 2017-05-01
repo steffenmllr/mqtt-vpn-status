@@ -4,14 +4,19 @@ const ipInfo = require('ipinfo');
 const speedTest = require('speedtest-net');
 const cronstring = require('cronstring');
 
-const MQTT_HOST = process.env.MQTT_HOST || 'http://192.168.1.106:1883';
-const MQTT_USER = process.env.MQTT_USER || 'pi';
-const MQTT_PASSWORD = process.env.MQTT_PASSWORD || 'raspberry';
+const MQTT_HOST = process.env.MQTT_HOST || 'http://192.168.1.88:1883';
+const MQTT_USER = process.env.MQTT_USER || '';
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD || '';
 
 const client = mqtt.connect(MQTT_HOST, {
     username: MQTT_USER,
     password: MQTT_PASSWORD,
-    clientId: 'vpnstatus'
+    clientId: 'vpnstatus',
+    will: {
+        topic: 'vpn/state'
+        payload: 'DISCONNECTED',
+        retain: true
+    }
 })
 
 let vpnSpeedRunning = false;
@@ -22,7 +27,6 @@ const sendSpeedUpdate = () => {
     }
     vpnSpeedRunning = true;
     speedTest().on('data', data => {
-        console.log(JSON.stringify(data.speeds));
         client.publish('vpn/download', JSON.stringify(data.speeds))
         vpnSpeedRunning = false;
     });
@@ -31,19 +35,17 @@ const sendSpeedUpdate = () => {
 let ipInfoRunning = false;
 const sendStateUpdate = () => {
     if (ipInfoRunning) {
-        console.log('Skipping IP');
         return;
     }
     ipInfoRunning = true;
     ipInfo((err, cLoc) => {
-        console.log(JSON.stringify(cLoc));
+        cLoc.created_at = new Date();
         client.publish('vpn/state', JSON.stringify(cLoc))
         ipInfoRunning = false;
     });
 }
 
 client.on('connect', function(foo, bar) {
-    client.publish('vpn/connected', 'true');
     client.subscribe('vpn/update')
     sendStateUpdate();
     sendSpeedUpdate();
@@ -55,7 +57,6 @@ client.on('connect', function(foo, bar) {
 // Subscribe to update Calls
 client.on('message', function (topic, message) {
     if (topic === 'vpn/update') {
-        console.log('vpn/update');
         sendStateUpdate();
     }
 });
@@ -71,7 +72,7 @@ const handleAppExit = (options, err) => {
         console.log(err.stack)
     }
     if (options.cleanup) {
-        client.publish('vpn/connected', 'false')
+        client.publish('vpn/state', 'DISCONNECTED')
     }
     if (options.exit) {
         process.exit()
